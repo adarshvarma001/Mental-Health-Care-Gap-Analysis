@@ -1,7 +1,23 @@
+# --- Flask backend ---
 flask
 flask-cors
+
+# --- Core ML ---
 numpy
 pandas
 scikit-learn
 xgboost
 joblib
+
+# --- NLP (ClinicalBERT) ---
+torch
+transformers
+sentencepiece
+
+# --- OCR (image → text) ---
+pytesseract
+opencv-python
+Pillow
+
+# --- Utilities ---
+regex
