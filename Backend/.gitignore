@@ -12,3 +12,5 @@ Backend/uploads/
 
 # OS
 .DS_Store
+Backend/data/
+Backend/uploads/

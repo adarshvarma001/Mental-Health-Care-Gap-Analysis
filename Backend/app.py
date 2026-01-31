@@ -12,7 +12,7 @@ CORS(app)
 # -------- REGISTER BLUEPRINTS --------
 app.register_blueprint(risk_bp)
 app.register_blueprint(nlp_bp)
-app.register_blueprint(care_gap_bp)
+app.register_blueprint(care_gap_bp, url_prefix="/care-gap")
 
 if __name__ == "__main__":
     app.run(debug=True)

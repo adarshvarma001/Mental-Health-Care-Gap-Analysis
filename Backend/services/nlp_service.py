@@ -15,6 +15,22 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 LABELS = ["Anxiety", "Stress", "Depression", "Sleep"]
 
+def to_python(obj):
+    """Recursively convert numpy / torch types to Python native types"""
+    import numpy as np
+    import torch
+
+    if isinstance(obj, dict):
+        return {k: to_python(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [to_python(v) for v in obj]
+    if isinstance(obj, (np.integer, np.floating)):
+        return obj.item()
+    if isinstance(obj, torch.Tensor):
+        return obj.detach().cpu().item() if obj.numel() == 1 else obj.detach().cpu().tolist()
+    return obj
+
+
 # ---------------- TOKENIZER ----------------
 tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
 
@@ -131,11 +147,19 @@ def analyze_text(text: str):
         score = round(score, 2)
 
         results[label] = {
-            "score": score,
-            "severity": score_to_severity(score)
+            "score": float(score),
+            "severity": score_to_severity(float(score))
         }
 
-    return {
+
+    overall = max(float(v["score"]) for v in results.values())
+
+    response = {
         "labels": results,
-        "overall_severity": max(v["score"] for v in results.values())
+        "overall_severity": float(overall)
     }
+
+    return to_python(response)
+
+
+

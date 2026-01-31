@@ -33,7 +33,8 @@ def compute_urgency(risk_score, labels):
     if risk_score >= 75 and MSI >= 0.6:
         urgency_pct = max(urgency_pct, 80)
 
-    return urgency_pct
+    return float(urgency_pct)
+
 
 
 def urgency_level(score):

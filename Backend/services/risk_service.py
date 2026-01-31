@@ -12,4 +12,4 @@ print(f"Loaded model: {MODEL_PATH}")
 def predict_risk(input_data: dict) -> float:
     X = preprocess_input(input_data)
     risk_prob = model.predict_proba(X)[0][1]
-    return round(risk_prob * 100, 2)
+    return float(round(float(risk_prob) * 100, 2))

@@ -12,37 +12,27 @@ MENTAL_SPECIALTIES = [
 def recommend_doctors(user_city=None, user_state=None, limit=3):
     df = pd.read_csv(DOCTOR_DATA_PATH)
 
-    # ---- filter mental health doctors ----
-    df = df[df["primary_specialty"].str.contains(
-        "|".join(MENTAL_SPECIALTIES),
-        case=False,
-        na=False
-    )]
-
-    # ---- location filter (optional but recommended) ----
     if user_city:
         df = df[df["city"].str.lower() == user_city.lower()]
 
     if user_state:
         df = df[df["state"].str.lower() == user_state.lower()]
 
-    # ---- fallback if no local doctors ----
-    if df.empty:
-        df = pd.read_csv(DOCTOR_DATA_PATH)
-        df = df[df["primary_specialty"].str.contains(
-            "|".join(MENTAL_SPECIALTIES),
-            case=False,
-            na=False
-        )]
-
     df = df.head(limit)
 
-    return df[[
-        "first_name",
-        "last_name",
-        "credential",
-        "primary_specialty",
-        "city",
-        "state",
-        "phone"
-    ]].to_dict(orient="records")
+    # 🔥 FINAL JSON-SAFE CONVERSION
+    doctors = []
+    for _, row in df.iterrows():
+        doctors.append({
+            "NPI": str(row["NPI"]),
+            "first_name": str(row["first_name"]),
+            "last_name": str(row["last_name"]),
+            "gender": str(row["gender"]),
+            "credential": str(row["credential"]),
+            "primary_specialty": str(row["primary_specialty"]),
+            "city": str(row["city"]),
+            "state": str(row["state"]),
+            "phone": str(row["phone"])
+        })
+
+    return doctors

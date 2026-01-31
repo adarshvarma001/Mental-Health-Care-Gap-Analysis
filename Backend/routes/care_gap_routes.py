@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
+import os, uuid
 
-# -------- SERVICES --------
 from services.risk_service import predict_risk
 from services.nlp_service import analyze_input
 from services.urgency_service import compute_urgency, urgency_level
@@ -9,7 +9,9 @@ from services.doctor_service import recommend_doctors
 
 care_gap_bp = Blueprint("care_gap", __name__)
 
-# -------- RISK FEATURES (MUST MATCH MODEL) --------
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 RISK_FEATURES = [
     "_AGE_G", "_SEX", "MARITAL", "EMPLOY1", "INCOME3", "EDUCA",
     "MEDCOST1", "SDHFOOD1", "SDHBILLS", "EXERANY2", "SMOKE100",
@@ -19,108 +21,116 @@ RISK_FEATURES = [
 
 @care_gap_bp.route("/self-check", methods=["POST"])
 def self_check():
-    """
-    FULL CARE GAP FLOW
-    1. Risk Analysis
-    2. Mental Health Analysis (Text OR Image)
-    3. Urgency Calculation
-    4. Patient Record Storage
-    5. Care Gap / Doctor Recommendation
-    """
 
-    # ---------------- 0️⃣ INPUT ----------------
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "Invalid or empty JSON input"}), 400
+    # ============================================================
+    # 0️⃣ INPUT (JSON OR IMAGE)
+    # ============================================================
+    data = {}
+    image_path = None
 
-    # ---------------- 1️⃣ RISK ANALYSIS ----------------
-    try:
-        # Extract ONLY risk features
-        risk_input = {k: data[k] for k in RISK_FEATURES if k in data}
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        data = request.form.to_dict()
+        image = request.files.get("image")
 
-        if len(risk_input) != len(RISK_FEATURES):
-            return jsonify({
-                "error": "Missing required risk features"
-            }), 400
+        if image and image.filename:
+            filename = f"{uuid.uuid4().hex}.png"
+            image_path = os.path.join(UPLOAD_DIR, filename)
+            image.save(image_path)
+    else:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Invalid or empty JSON input"}), 400
 
-        risk_score = round(float(predict_risk(risk_input)), 2)
+    # ============================================================
+    # 1️⃣ RISK ANALYSIS (MANDATORY)
+    # ============================================================
+    risk_input = {}
 
-    except Exception as e:
-        print("Risk error:", e)
-        return jsonify({"error": "Risk calculation failed"}), 500
+    for f in RISK_FEATURES:
+        if f not in data:
+            return jsonify({"error": f"Missing risk feature: {f}"}), 400
+        risk_input[f] = int(data[f])
 
-    # ⛔ Stop early if risk is low
+    risk_score = float(predict_risk(risk_input))
+
+    # ---------------- LOW RISK ----------------
     if risk_score < 50:
         return jsonify({
             "risk_score": risk_score,
-            "risk_type": "LOW",
-            "message": "Risk is low. No further action required."
+            "action": "No further action required"
         })
 
-    # ---------------- 2️⃣ MENTAL HEALTH (TEXT ONLY FOR NOW) ----------------
-    try:
-        if "text" in data and data["text"].strip():
-            nlp_result = analyze_input(text=data["text"])
-        else:
-            return jsonify({
-                "error": "Provide 'text' for mental health analysis"
-            }), 400
+    # ============================================================
+    # 2️⃣ CHECK IF CARE GAP INPUT PROVIDED
+    # ============================================================
+    has_text = "text" in data and str(data["text"]).strip()
+    has_image = image_path is not None
 
-        mental_health = nlp_result["labels"]
+    # 🔴 Risk is high but no text/image yet
+    if not has_text and not has_image:
+        return jsonify({
+            "risk_score": risk_score,
+            "action": "Once consider taking Care Gap Analysis",
+            "message": "Provide either Symtoms as text or an Medical Report image for further analysis"
+        })
 
-    except Exception as e:
-        print("NLP error:", e)
-        return jsonify({"error": "Mental health analysis failed"}), 500
+    if has_text and has_image:
+        return jsonify({
+            "error": "Provide only one input: text OR image"
+        }), 400
 
-    # ---------------- 3️⃣ URGENCY ----------------
-    urgency_score = compute_urgency(risk_score, mental_health)
-    urgency_lvl = urgency_level(urgency_score)
+    # ============================================================
+    # 3️⃣ NLP ANALYSIS
+    # ============================================================
+    if has_text:
+        nlp_result = analyze_input(text=data["text"])
+    else:
+        nlp_result = analyze_input(image_path=image_path)
+
+    if "error" in nlp_result:
+        return jsonify({"error": nlp_result["error"]}), 400
+
+    mental_health = nlp_result["labels"]
+
+    # ============================================================
+    # 4️⃣ URGENCY
+    # ============================================================
+    urgency_score = float(compute_urgency(risk_score, mental_health))
 
     urgency = {
         "score": urgency_score,
-        "level": urgency_lvl
+        "level": urgency_level(urgency_score)
     }
 
-    # ---------------- 4️⃣ SAVE PATIENT RECORD ----------------
-    try:
-        record = save_patient_record(
-            risk_score=risk_score,
-            risk_inputs=risk_input,
-            mental_health=mental_health,
-            urgency=urgency,
-            city=data.get("city"),
-            state=data.get("state")
-        )
-        patient_id = record.get("patient_id", "UNKNOWN")
-    except Exception as e:
-        print("Save error:", e)
-        patient_id = "TEMP_ID"
+    # ============================================================
+    # 5️⃣ SAVE RECORD
+    # ============================================================
+    record = save_patient_record(
+        risk_score=risk_score,
+        risk_inputs=risk_input,
+        mental_health=mental_health,
+        urgency=urgency,
+        city=data.get("city"),
+        state=data.get("state")
+    )
 
-    # ---------------- 5️⃣ FINAL DECISION ----------------
     response = {
-        "patient_id": patient_id,
+        "patient_id": record.get("patient_id", "TEMP_ID"),
         "risk_score": risk_score,
         "mental_health": mental_health,
         "urgency": urgency
     }
 
-    if urgency_score >= 60:
+    # ============================================================
+    # 6️⃣ FINAL DECISION (ONLY BASED ON URGENCY)
+    # ============================================================
+    if urgency_score >= 50:
         response["action"] = "Doctor consultation recommended"
-
-        doctors = recommend_doctors(
+        response["doctors"] = recommend_doctors(
             user_city=data.get("city"),
             user_state=data.get("state")
         )
-
-        if doctors:
-            response["doctors"] = doctors
-        else:
-            response["message"] = "No nearby mental health specialists found"
-
-    elif urgency_score >= 30:
-        response["action"] = "Care gap recommendations suggested"
-
     else:
-        response["action"] = "Self-care advised"
+        response["action"] = "Care gap recommendations suggested"
 
     return jsonify(response)
