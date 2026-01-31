@@ -15,7 +15,7 @@ def compute_urgency(risk_score, labels):
     D = labels["Depression"]["score"] / 100
     SL = labels["Sleep"]["score"] / 100
 
-    # Mental Severity Index
+    # Mental Severity Index (MSI)
     MSI = (
         0.25 * D +
         0.25 * SL +
@@ -34,3 +34,18 @@ def compute_urgency(risk_score, labels):
         urgency_pct = max(urgency_pct, 80)
 
     return urgency_pct
+
+
+def urgency_level(score):
+    """
+    Converts urgency percentage into label
+    """
+
+    if score < 30:
+        return "Low"
+    elif score < 60:
+        return "Moderate"
+    elif score < 80:
+        return "High"
+    else:
+        return "Critical"
