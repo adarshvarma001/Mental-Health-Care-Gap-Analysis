@@ -14,3 +14,5 @@ Backend/uploads/
 .DS_Store
 Backend/data/
 Backend/uploads/
+Backend/uploads/
+Backend/data/patient_records.json
