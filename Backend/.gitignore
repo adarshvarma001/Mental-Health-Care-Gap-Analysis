@@ -16,3 +16,6 @@ Backend/data/
 Backend/uploads/
 Backend/uploads/
 Backend/data/patient_records.json
+data/clean_doctors_required.csv
+data/
+uploads/
