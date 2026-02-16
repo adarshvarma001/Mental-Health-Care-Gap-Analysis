@@ -1,21 +1,30 @@
-# Virtual env
+# ===============================
+# PYTHON
+# ===============================
 venv/
 Backend/venv/
-
-# Runtime & cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Runtime data
-Backend/data/patient_records.json
+# ===============================
+# BACKEND RUNTIME FILES
+# ===============================
 Backend/uploads/
+Backend/data/patient_records.json
 
-# OS
+# ===============================
+# FRONTEND
+# ===============================
+frontend/node_modules/
+frontend/dist/
+
+# ===============================
+# OS FILES
+# ===============================
 .DS_Store
-Backend/data/
-Backend/uploads/
-Backend/uploads/
-Backend/data/patient_records.json
-data/clean_doctors_required.csv
-data/
-uploads/
+Thumbs.db
+
+# Node lock file
+package-lock.json
