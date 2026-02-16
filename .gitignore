@@ -1,0 +1,27 @@
+# ===============================
+# PYTHON
+# ===============================
+venv/
+Backend/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ===============================
+# BACKEND RUNTIME FILES
+# ===============================
+Backend/uploads/
+Backend/data/patient_records.json
+
+# ===============================
+# FRONTEND
+# ===============================
+frontend/node_modules/
+frontend/dist/
+
+# ===============================
+# OS FILES
+# ===============================
+.DS_Store
+Thumbs.db
